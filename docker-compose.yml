@@ -1,21 +1,33 @@
-version: "2"
+version: '3'
+
 services:
-  foo:
-    image: busybox
-    blkio_config:
-      weight: 300
-      weight_device:
-        - path: /dev/sda
-          weight: 400
-      device_read_bps:
-        - path: /dev/sdb
-          rate: '12mb'
-      device_read_iops:
-        - path: /dev/sdb
-          rate: 120
-      device_write_bps:
-        - path: /dev/sdb
-          rate: '1024k'
-      device_write_iops:
-        - path: /dev/sdb
-          rate: 30
+  frontend:
+    image: eeacms/clms-frontend
+    ports:
+      - 3000:3000
+    depends_on:
+      - backend
+    environment:
+      API_PATH: 'http://localhost:8080/Plone'
+      INTERNAL_API_PATH: 'http://backend:8080/Plone'
+
+  backend:
+    image: eeacms/clms-backend:latest
+    ports:
+      - 8080:8080
+    environment:
+      CORS_ALLOW_ORIGIN: 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:${FRONTEND:-8000},http://127.0.0.1:${FRONTEND:-8000}'
+    depends_on:
+      - memcached
+    volumes:
+      - data:/data
+
+  memcached:
+    image: memcached
+    command:
+      - '-m'
+      - '512'
+
+volumes:
+  data:
+    driver: local
