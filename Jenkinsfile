@@ -249,12 +249,6 @@ pipeline {
       }
     }
 
-    stage('Deploy') {
-      steps {
-        build(job: 'DeployBackend', wait: true)
-      }
-    }
-
   }
   environment {
     GIT_NAME = 'volto-arcgis-block'
