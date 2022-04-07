@@ -1,29 +1,23 @@
 pipeline {
   agent any
-
-  environment {
-        GIT_NAME = "volto-arcgis-block"
-        NAMESPACE = "@eeacms"
-        SONARQUBE_TAGS = "volto.eea.europa.eu,clms.land.copernicus.eu,water.europa.eu-freshwater,clmsdemo.devel6cph.eea.europa.eu"
-        DEPENDENCIES = ""
-    }
-
   stages {
-
     stage('Release') {
       when {
         allOf {
           environment name: 'CHANGE_ID', value: ''
           branch 'master'
         }
+
       }
       steps {
         node(label: 'docker') {
-          withCredentials([string(credentialsId: 'eea-jenkins-token', variable: 'GITHUB_TOKEN'),string(credentialsId: 'eea-jenkins-npm-token', variable: 'NPM_TOKEN')]) {
-            sh '''docker pull eeacms/gitflow'''
-            sh '''docker run -i --rm --name="$BUILD_TAG-gitflow-master" -e GIT_BRANCH="$BRANCH_NAME" -e GIT_NAME="$GIT_NAME" -e GIT_TOKEN="$GITHUB_TOKEN" -e NPM_TOKEN="$NPM_TOKEN" -e LANGUAGE=javascript eeacms/gitflow'''
+          withCredentials(bindings: [string(credentialsId: 'eea-jenkins-token', variable: 'GITHUB_TOKEN'),string(credentialsId: 'eea-jenkins-npm-token', variable: 'NPM_TOKEN')]) {
+            sh 'docker pull eeacms/gitflow'
+            sh 'docker run -i --rm --name="$BUILD_TAG-gitflow-master" -e GIT_BRANCH="$BRANCH_NAME" -e GIT_NAME="$GIT_NAME" -e GIT_TOKEN="$GITHUB_TOKEN" -e NPM_TOKEN="$NPM_TOKEN" -e LANGUAGE=javascript eeacms/gitflow'
           }
+
         }
+
       }
     }
 
@@ -31,31 +25,45 @@ pipeline {
       when {
         allOf {
           environment name: 'CHANGE_ID', value: ''
-          not { changelog '.*^Automated release [0-9\\.]+$' }
-          not { branch 'master' }
-        }
-      }
-      steps {
-        parallel(
-
-          "ES lint": {
-            node(label: 'docker') {
-              sh '''docker run -i --rm --name="$BUILD_TAG-eslint" -e NAMESPACE="$NAMESPACE" -e GIT_NAME=$GIT_NAME -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" plone/volto-addon-ci eslint'''
-            }
-          },
-
-          "Style lint": {
-            node(label: 'docker') {
-              sh '''docker run -i --rm --name="$BUILD_TAG-stylelint" -e NAMESPACE="$NAMESPACE" -e GIT_NAME=$GIT_NAME -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" plone/volto-addon-ci stylelint'''
-            }
-          },
-
-          "Prettier": {
-            node(label: 'docker') {
-              sh '''docker run -i --rm --name="$BUILD_TAG-prettier" -e NAMESPACE="$NAMESPACE" -e GIT_NAME=$GIT_NAME -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" plone/volto-addon-ci prettier'''
-            }
+          not {
+            changelog '.*^Automated release [0-9\\.]+$'
           }
-        )
+
+          not {
+            branch 'master'
+          }
+
+        }
+
+      }
+      parallel {
+        stage('ES lint') {
+          steps {
+            node(label: 'docker') {
+              sh 'docker run -i --rm --name="$BUILD_TAG-eslint" -e NAMESPACE="$NAMESPACE" -e GIT_NAME=$GIT_NAME -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" plone/volto-addon-ci eslint'
+            }
+
+          }
+        }
+
+        stage('Style lint') {
+          steps {
+            node(label: 'docker') {
+              sh 'docker run -i --rm --name="$BUILD_TAG-stylelint" -e NAMESPACE="$NAMESPACE" -e GIT_NAME=$GIT_NAME -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" plone/volto-addon-ci stylelint'
+            }
+
+          }
+        }
+
+        stage('Prettier') {
+          steps {
+            node(label: 'docker') {
+              sh 'docker run -i --rm --name="$BUILD_TAG-prettier" -e NAMESPACE="$NAMESPACE" -e GIT_NAME=$GIT_NAME -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" plone/volto-addon-ci prettier'
+            }
+
+          }
+        }
+
       }
     }
 
@@ -64,15 +72,19 @@ pipeline {
         allOf {
           environment name: 'CHANGE_ID', value: ''
           anyOf {
-           not { changelog '.*^Automated release [0-9\\.]+$' }
-           branch 'master'
-          }
-        }
-      }
-      steps {
-        parallel(
+            not {
+              changelog '.*^Automated release [0-9\\.]+$'
+            }
 
-          "Volto": {
+            branch 'master'
+          }
+
+        }
+
+      }
+      parallel {
+        stage('Volto') {
+          steps {
             node(label: 'docker') {
               script {
                 try {
@@ -95,15 +107,18 @@ pipeline {
                     reportTitles: 'Unit Tests Code Coverage'
                   ])
                 } finally {
-                    catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
-                        junit testResults: 'xunit-reports/junit.xml', allowEmptyResults: true
-                    }
-                   sh script: '''docker rm -v $BUILD_TAG-volto''', returnStatus: true
+                  catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                    junit testResults: 'xunit-reports/junit.xml', allowEmptyResults: true
+                  }
+                  sh script: '''docker rm -v $BUILD_TAG-volto''', returnStatus: true
                 }
               }
+
             }
+
           }
-        )
+        }
+
       }
     }
 
@@ -112,15 +127,19 @@ pipeline {
         allOf {
           environment name: 'CHANGE_ID', value: ''
           anyOf {
-           not { changelog '.*^Automated release [0-9\\.]+$' }
-           branch 'master'
-          }
-        }
-      }
-      steps {
-        parallel(
+            not {
+              changelog '.*^Automated release [0-9\\.]+$'
+            }
 
-          "Cypress": {
+            branch 'master'
+          }
+
+        }
+
+      }
+      parallel {
+        stage('Cypress') {
+          steps {
             node(label: 'docker') {
               script {
                 try {
@@ -134,13 +153,13 @@ pipeline {
                     sh '''docker cp $BUILD_TAG-cypress:/opt/frontend/my-volto-project/src/addons/$GIT_NAME/cypress/reports cypress-results/'''
                     coverage = sh script: '''docker cp $BUILD_TAG-cypress:/opt/frontend/my-volto-project/src/addons/$GIT_NAME/coverage cypress-coverage/''', returnStatus: true
                     if ( coverage == 0 ) {
-                         publishHTML (target : [allowMissing: false,
-                             alwaysLinkToLastBuild: true,
-                             keepAll: true,
-                             reportDir: 'cypress-coverage/coverage/lcov-report',
-                             reportFiles: 'index.html',
-                             reportName: 'CypressCoverage',
-                             reportTitles: 'Integration Tests Code Coverage'])
+                      publishHTML (target : [allowMissing: false,
+                      alwaysLinkToLastBuild: true,
+                      keepAll: true,
+                      reportDir: 'cypress-coverage/coverage/lcov-report',
+                      reportFiles: 'index.html',
+                      reportName: 'CypressCoverage',
+                      reportTitles: 'Integration Tests Code Coverage'])
                     }
                     sh '''touch empty_file; for ok_test in $(grep -E 'file=.*failures="0"' $(grep 'testsuites .*failures="0"' $(find cypress-results -name *.xml) empty_file | awk -F: '{print $1}') empty_file | sed 's/.* file="\\(.*\\)" time.*/\\1/' | sed 's#^cypress/integration/##g' | sed 's#^../../../node_modules/@eeacms/##g'); do rm -f cypress-reports/videos/$ok_test.mp4; rm -f cypress-reports/$ok_test.mp4; done'''
                     archiveArtifacts artifacts: 'cypress-reports/**/*.mp4', fingerprint: true, allowEmptyArchive: true
@@ -148,7 +167,7 @@ pipeline {
                   }
                   finally {
                     catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
-                        junit testResults: 'cypress-results/**/*.xml', allowEmptyResults: true
+                      junit testResults: 'cypress-results/**/*.xml', allowEmptyResults: true
                     }
                     sh script: "docker stop $BUILD_TAG-plone", returnStatus: true
                     sh script: "docker rm -v $BUILD_TAG-plone", returnStatus: true
@@ -157,10 +176,12 @@ pipeline {
                   }
                 }
               }
-            }
-          }
 
-        )
+            }
+
+          }
+        }
+
       }
     }
 
@@ -172,14 +193,20 @@ pipeline {
             branch 'master'
             allOf {
               branch 'develop'
-              not { changelog '.*^Automated release [0-9\\.]+$' }
+              not {
+                changelog '.*^Automated release [0-9\\.]+$'
+              }
+
             }
+
           }
+
         }
+
       }
       steps {
         node(label: 'swarm') {
-          script{
+          script {
             checkout scm
             unstash "xunit-reports"
             unstash "cypress-coverage"
@@ -191,7 +218,9 @@ pipeline {
               sh '''try=2; while [ \$try -gt 0 ]; do curl -s -XPOST -u "${SONAR_AUTH_TOKEN}:" "${SONAR_HOST_URL}api/project_tags/set?project=${GIT_NAME}-${BRANCH_NAME}&tags=${SONARQUBE_TAGS},${BRANCH_NAME}" > set_tags_result; if [ \$(grep -ic error set_tags_result ) -eq 0 ]; then try=0; else cat set_tags_result; echo "... Will retry"; sleep 60; try=\$(( \$try - 1 )); fi; done'''
             }
           }
+
         }
+
       }
     }
 
@@ -200,42 +229,59 @@ pipeline {
         not {
           environment name: 'CHANGE_ID', value: ''
         }
+
         environment name: 'CHANGE_TARGET', value: 'master'
       }
       steps {
         node(label: 'docker') {
           script {
             if ( env.CHANGE_BRANCH != "develop" ) {
-                error "Pipeline aborted due to PR not made from develop branch"
+              error "Pipeline aborted due to PR not made from develop branch"
             }
-           withCredentials([string(credentialsId: 'eea-jenkins-token', variable: 'GITHUB_TOKEN')]) {
-            sh '''docker pull eeacms/gitflow'''
-            sh '''docker run -i --rm --name="$BUILD_TAG-gitflow-pr" -e GIT_CHANGE_TARGET="$CHANGE_TARGET" -e GIT_CHANGE_BRANCH="$CHANGE_BRANCH" -e GIT_CHANGE_AUTHOR="$CHANGE_AUTHOR" -e GIT_CHANGE_TITLE="$CHANGE_TITLE" -e GIT_TOKEN="$GITHUB_TOKEN" -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" -e GIT_ORG="$GIT_ORG" -e GIT_NAME="$GIT_NAME" -e LANGUAGE=javascript eeacms/gitflow'''
-           }
+            withCredentials([string(credentialsId: 'eea-jenkins-token', variable: 'GITHUB_TOKEN')]) {
+              sh '''docker pull eeacms/gitflow'''
+              sh '''docker run -i --rm --name="$BUILD_TAG-gitflow-pr" -e GIT_CHANGE_TARGET="$CHANGE_TARGET" -e GIT_CHANGE_BRANCH="$CHANGE_BRANCH" -e GIT_CHANGE_AUTHOR="$CHANGE_AUTHOR" -e GIT_CHANGE_TITLE="$CHANGE_TITLE" -e GIT_TOKEN="$GITHUB_TOKEN" -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" -e GIT_ORG="$GIT_ORG" -e GIT_NAME="$GIT_NAME" -e LANGUAGE=javascript eeacms/gitflow'''
+            }
           }
+
         }
+
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        build(job: 'DeployBackend', wait: true)
       }
     }
 
   }
-
+  environment {
+    GIT_NAME = 'volto-arcgis-block'
+    NAMESPACE = '@eeacms'
+    SONARQUBE_TAGS = 'volto.eea.europa.eu,clms.land.copernicus.eu,water.europa.eu-freshwater,clmsdemo.devel6cph.eea.europa.eu'
+    DEPENDENCIES = ''
+  }
   post {
     always {
       cleanWs(cleanWhenAborted: true, cleanWhenFailure: true, cleanWhenNotBuilt: true, cleanWhenSuccess: true, cleanWhenUnstable: true, deleteDirs: true)
     }
+
     changed {
       script {
         def details = """<h1>${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - ${currentBuild.currentResult}</h1>
-                         <p>Check console output at <a href="${env.BUILD_URL}/display/redirect">${env.JOB_BASE_NAME} - #${env.BUILD_NUMBER}</a></p>
-                      """
+        <p>Check console output at <a href="${env.BUILD_URL}/display/redirect">${env.JOB_BASE_NAME} - #${env.BUILD_NUMBER}</a></p>
+        """
         emailext(
-        subject: '$DEFAULT_SUBJECT',
-        body: details,
-        attachLog: true,
-        compressLog: true,
-        recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'CulpritsRecipientProvider']]
+          subject: '$DEFAULT_SUBJECT',
+          body: details,
+          attachLog: true,
+          compressLog: true,
+          recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'CulpritsRecipientProvider']]
         )
       }
+
     }
+
   }
 }
