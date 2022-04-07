@@ -15,7 +15,7 @@ services:
     ports:
       - 8080:8080
     environment:
-      CORS_ALLOW_ORIGIN: 'http://localhost:3000,http://localhost:8080'
+      CORS_ALLOW_ORIGIN: '*'
     depends_on:
       - memcached
     volumes:
