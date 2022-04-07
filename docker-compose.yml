@@ -1,0 +1,51 @@
+version: '2'
+services:
+
+  memcached:
+    image: memcached:1.6.14
+    mem_limit: 1g
+    mem_reservation: 1g
+    command:
+    - "-m"
+    - "1024"
+    labels:
+      io.rancher.container.hostname_override: container_name
+      io.rancher.scheduler.affinity:host_label_ne: reserved=yes
+      eu.europa.saas.memcached3: 'true'
+
+  zeo:
+    image: eeacms/plone:5.2.7-4 #gitflow-disable - Keep this comment to disable automatic upgrades by gitflow
+    mem_reservation: ${ZEO_MEM_LIMIT}
+    mem_limit: ${ZEO_MEM_LIMIT}
+    labels:
+      io.rancher.container.hostname_override: container_name
+      io.rancher.scheduler.affinity:host_label_ne: reserved=yes
+      io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+      eu.europa.saas.zeo3: 'true'
+    volumes:
+    - ${DATA_VOLUME_NAME}:/data
+    environment:
+      ZOPE_MODE: "zeo"
+    command:
+    - zeo
+
+  plone:
+    image: eeacms/clms-backend:latest
+    ports:
+    - "8080"
+    mem_reservation: 4g
+    mem_limit: 4g
+    labels:
+      io.rancher.container.hostname_override: container_name
+      io.rancher.scheduler.affinity:host_label_ne: reserved=yes
+      io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+      eu.europa.saas.plone3: 'true'
+    links:
+    - memcached
+    - zeo
+    depends_on:
+    - memcached
+    - zeo
+    environment:
+      ZEO_ADDRESS: zeo:8080
+      ZOPE_MODE: "zeo_client"
