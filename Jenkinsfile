@@ -143,7 +143,7 @@ pipeline {
             node(label: 'docker') {
               script {
                 try {
-                  sh '''docker pull plone; docker run -d --rm --name="$BUILD_TAG-plone" -e SITE="Plone" -e PROFILES="profile-plone.restapi:blocks" plone fg'''
+                  sh '''docker pull eeacms/clms-backend; docker run -d --rm --name="$BUILD_TAG-plone" -e SITE="Plone" -e PROFILES="profile-plone.restapi:blocks" eeacms/clms-backend fg'''
                   sh '''docker pull plone/volto-addon-ci; docker run -i --name="$BUILD_TAG-cypress" --link $BUILD_TAG-plone:plone -e NAMESPACE="$NAMESPACE" -e GIT_NAME=$GIT_NAME -e GIT_BRANCH="$BRANCH_NAME" -e GIT_CHANGE_ID="$CHANGE_ID" -e DEPENDENCIES="$DEPENDENCIES" -e NODE_ENV=test plone/volto-addon-ci cypress'''
                 } finally {
                   try {
